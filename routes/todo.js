@@ -4,10 +4,10 @@ const Todo = require("./../models/Todo");
 const fetchUser = require("../middleware/fetchUser");
 const { body, validationResult } = require("express-validator");
 
-router.get("/get", fetchUser, async () => {
+router.get("/get", fetchUser, async (req, res) => {
   try {
-    await Todo.find({ user: req.user.id });
-    res.status(200);
+    const todo = await Todo.find({ user: req.user.id });
+    res.status(200).json(todo);
   } catch (err) {
     res.status(500);
     console.log(error);
@@ -24,13 +24,13 @@ router.post(
       try {
         const newItem = new Todo({ name, user: req.user.id, tag, date });
         await newItem.save();
-        res.status(200);
+        return res.status(200).json(newItem);
       } catch (err) {
-        res.status(500);
+        return res.status(500).json({ msg: "internal server error" });
       }
     }
 
-    res.send({ error: result.array() });
+    return res.send({ error: result.array() });
   }
 );
 
