@@ -67,7 +67,7 @@ router.put("/update/:id", fetchUser, async (req, res) => {
     await Todo.findByIdAndUpdate(req.params.id, updatedTodo, { new: true });
     res.status(200).json({ msg: " done " });
   } catch (err) {
-    console.error("error in deleting", err);
+    console.error("error in updating", err);
     res.status(500);
   }
 });
