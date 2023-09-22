@@ -63,12 +63,12 @@ router.post(
       try {
         let user = await User.findOne({ email });
         if (!user) {
-          return res.json({ error: "please enter correct creds" });
+          return res.status(400).json({ error: "please enter correct creds" });
         }
 
         const passCompare = await bcrypt.compare(password, user.password);
         if (!passCompare) {
-          return res.json({ error: "please enter correct creds" });
+          return res.status(400).json({ error: "please enter correct creds" });
         }
 
         const data = {
