@@ -3,11 +3,25 @@ const router = express.Router();
 const bcrypt = require("bcrypt");
 const User = require("./../models/User");
 const jwt = require("jsonwebtoken");
+const multer = require("multer");
 const fetchUser = require("../middleware/fetchUser");
 const { body, validationResult } = require("express-validator");
+const fs = require("fs");
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, "uploads"); // Define the directory where uploaded images will be stored
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + "-" + file.originalname); // Define the filename
+  },
+});
+
+const upload = multer({ storage: storage });
 
 router.post(
   "/create",
+  upload.single("profileImage"),
   [
     body("email").isEmail(),
     body("name").isLength({ min: 3 }),
@@ -16,34 +30,42 @@ router.post(
   async (req, res) => {
     const result = validationResult(req);
     if (result.isEmpty()) {
-      // const user = User(req.body)
-      // await user.save()
-      const existingUser = await User.findOne({ email: req.body.email });
+      const { email, name, password } = req.body;
 
-      if (existingUser) {
-        return res.status(400).json({ error: "user already created" });
-      } else {
-        try {
-          const salt = await bcrypt.genSalt(10);
+      try {
+        const existingUser = await User.findOne({ email });
 
-          let secPass = await bcrypt.hash(req.body.password, salt);
-          const user = new User({
-            name: req.body.name,
-            email: req.body.email,
-            password: secPass,
-          });
-          await user.save();
-          const data = {
-            user: {
-              id: user.id,
-            },
-          };
-          let token = jwt.sign(data, process.env.SECRET);
-          return res.json({ token });
-        } catch (err) {
-          res.status(500);
-          return console.error("error fetching from mongoDb ", err);
+        if (existingUser) {
+          return res.status(400).json({ error: "User already exists" });
         }
+
+        let secPass = await bcrypt.hash(password, 10);
+
+        let profileImageUrl = "";
+        if (req.file) {
+          profileImageUrl = req.file.path;
+        }
+
+        const user = new User({
+          name,
+          email,
+          password: secPass,
+          profileImage: profileImageUrl,
+        });
+
+        await user.save();
+
+        const data = {
+          user: {
+            id: user.id,
+          },
+        };
+
+        let token = jwt.sign(data, process.env.SECRET);
+        return res.json({ token });
+      } catch (err) {
+        res.status(500);
+        return console.error("Error creating user", err);
       }
     }
 
@@ -88,8 +110,63 @@ router.post(
   }
 );
 
-//fetchUser
+//Update USER
+router.put(
+  "/update",
+  fetchUser, // Middleware to fetch the authenticated user
+  upload.single("profileImage"), // Add this middleware to handle file upload
+  async (req, res) => {
+    try {
+      // Fetch the user's data from the database using req.user.id
+      const user = await User.findById(req.user.id);
 
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const { name, email, password } = req.body;
+      const updatedUserData = {
+        name,
+        email,
+        password,
+      };
+
+      // Check if a new profile image was uploaded
+      if (req.file) {
+        // Delete the previous profile image if it exists
+        if (user.profileImage) {
+          // Remove the previous image file using fs.unlink
+          fs.unlink(user.profileImage, (err) => {
+            if (err) {
+              console.error("Error deleting previous profile image:", err);
+            }
+          });
+        }
+
+        // Set the new profile image path in the updatedUserData
+        updatedUserData.profileImage = req.file.path;
+      }
+
+      // Update the user's information in the database
+      const updatedUser = await User.findByIdAndUpdate(
+        req.user.id,
+        updatedUserData,
+        { new: true }
+      );
+
+      // Generate a new token with updated user data if needed
+
+      res.json({
+        msg: "done successfully",
+        profileImage: updatedUser.profileImage,
+      });
+    } catch (err) {
+      console.error("Error updating user profile:", err);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  }
+);
+//fetchUser
 router.get("/getuser", fetchUser, async (req, res) => {
   try {
     let user = await User.findById(req.user.id).select("-password");
