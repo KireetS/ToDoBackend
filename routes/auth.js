@@ -7,13 +7,12 @@ const multer = require("multer");
 const fetchUser = require("../middleware/fetchUser");
 const { body, validationResult } = require("express-validator");
 const fs = require("fs");
-
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, "uploads"); // Define the directory where uploaded images will be stored
+    cb(null, "uploads");
   },
   filename: function (req, file, cb) {
-    cb(null, Date.now() + "-" + file.originalname); // Define the filename
+    cb(null, Date.now() + "-" + file.originalname);
   },
 });
 
@@ -133,18 +132,7 @@ router.put(
 
       // Check if a new profile image was uploaded
       if (req.file) {
-        // Delete the previous profile image if it exists
-        if (user.profileImage) {
-          // Remove the previous image file using fs.unlink
-          fs.unlink(user.profileImage, (err) => {
-            if (err) {
-              console.error("Error deleting previous profile image:", err);
-            }
-          });
-        }
-
-        // Set the new profile image path in the updatedUserData
-        updatedUserData.profileImage = req.file.path;
+        updatedUserData.profileImage = req.file.filename;
       }
 
       // Update the user's information in the database
