@@ -3,6 +3,7 @@ const router = express.Router();
 const bcrypt = require("bcrypt");
 const User = require("./../models/User");
 const jwt = require("jsonwebtoken");
+const path = require("path");
 const multer = require("multer");
 const fetchUser = require("../middleware/fetchUser");
 const { body, validationResult } = require("express-validator");
@@ -130,8 +131,18 @@ router.put(
         password,
       };
 
-      // Check if a new profile image was uploaded
       if (req.file) {
+        if (user.profileImage) {
+          const previousImagePath = path.join(
+            __dirname,
+            "..",
+            "uploads",
+            user.profileImage
+          );
+          if (fs.existsSync(previousImagePath)) {
+            fs.unlinkSync(previousImagePath);
+          }
+        }
         updatedUserData.profileImage = req.file.filename;
       }
 
